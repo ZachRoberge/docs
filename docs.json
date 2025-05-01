@@ -11,6 +11,15 @@
     "navigation": {
         "tabs": [
             {
+                "tab": "IDEA Technical Documents",
+                "groups": [
+                    {
+                        "group": "Batches",
+                        "pages": ["idea/batches/BillDue"]
+                    }
+                ]
+            },
+            {
                 "tab": "Guides",
                 "groups": [
                     {
