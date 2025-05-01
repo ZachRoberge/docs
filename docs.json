@@ -15,7 +15,11 @@
                 "groups": [
                     {
                         "group": "Batches",
-                        "pages": ["idea/batches/BillDue"]
+                        "pages": [
+                            "idea/batches/BillDue",
+                            "idea/batches/AccessibilityBatch",
+                            "idea/batches/Autopay"
+                        ]
                     }
                 ]
             },

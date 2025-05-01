@@ -1,0 +1,172 @@
+# Autopay Batch Documentation
+
+## Overview
+
+The `Autopay` batch automates payment processing for accounts. It retrieves payment data, validates payment methods, processes payments, and handles notifications for maximum withdrawal limits. Additionally, it generates reports for accounts exceeding withdrawal limits.
+
+## Class: `Autopay`
+
+### Properties
+
+-   **`batchName`**: A string representing the name of the batch. For this batch, it is `"Autopay"`.
+
+---
+
+### Method: `initialize()`
+
+Initializes the batch by setting the `batchName` property to `"Autopay"`.
+
+---
+
+### Method: `initializeThreadUnits(tenantId, batchSettings)`
+
+Fetches and prepares thread units for processing based on the provided batch settings.
+
+#### Parameters:
+
+-   **`tenantId`**: The ID of the tenant for which the batch is being run.
+-   **`batchSettings`**: Configuration settings for the batch, including file paths, filters, and override payment methods.
+
+#### Workflow:
+
+1. If `batchSettings.filePath` is provided:
+    - Fetches units from the `file-staging` service.
+    - Applies override payment methods based on `APAY_SRC_CD` if specified.
+2. If `batchSettings.filePath` is not provided:
+    - Fetches units from the `fetch-staging` service.
+    - Removes duplicate bills and accounts.
+    - Deletes processed records from staging.
+3. If `batchSettings.maxWidthdrawlNotice` is enabled:
+    - Initializes a log file for accounts exceeding withdrawal limits.
+    - Adds `maxWidthdrawlNotice` and `filePathMaxWithdrawl` to each unit.
+
+#### Returns:
+
+-   An array of thread units or an empty array in case of errors.
+
+---
+
+### Method: `processRecord(unit, tenantId)`
+
+Processes a single thread unit to handle payments and notifications.
+
+#### Parameters:
+
+-   **`unit`**: A thread unit containing payment and account details.
+-   **`tenantId`**: The ID of the tenant for which the batch is being run.
+
+#### Workflow:
+
+1. Fetches the user associated with the account (`ACCT_ID`).
+2. If `maxWidthdrawlNotice` is enabled:
+    - Calculates the total payment amount.
+    - If the amount exceeds the maximum withdrawal limit:
+        - Creates a notification for the user.
+        - Logs the account details to the withdrawal log file.
+3. Prepares payment parameters, including:
+    - Account ID, payment amount, customer ID, and token.
+4. Fetches the payment method type (`walletType`).
+5. Validates the payment method type and processes the payment using the `processor-payment` service.
+6. Resolves with `"done"` on success or an error object if payment fails.
+
+#### Returns:
+
+-   Resolves with `"done"` on success or an error object if processing fails.
+
+---
+
+### Method: `finalize({ units })`
+
+Finalizes the batch by generating and sending a report for accounts exceeding withdrawal limits.
+
+#### Parameters:
+
+-   **`units`**: An array of thread units processed during the batch.
+
+#### Workflow:
+
+1. Checks if a withdrawal log file exists for the first unit.
+2. Reads the log file and encodes it as a base64 string.
+3. Sends the log file as an email attachment using the `email-processor-call-function` service.
+
+#### Returns:
+
+-   Resolves with `"done"`.
+
+---
+
+## Helper Functions
+
+### `methodTypeMap`
+
+A mapping of payment method types:
+
+-   **`credit`**: `"autopay-cc"`
+-   **`checking`**: `"autopay-ach"`
+
+---
+
+## Dependencies
+
+-   **`GateKeeperHelper`**: For interacting with external services.
+-   **`moment`**: For date and time manipulation.
+-   **`fs`**: For file system operations.
+
+---
+
+## Database Collections
+
+-   **`Users`**: Stores user information.
+-   **`ScheduledNotifications`**: Stores notifications for delivery.
+
+---
+
+## Notifications
+
+The batch generates notifications for accounts exceeding the maximum withdrawal limit:
+
+-   **Type**: `"notification"`
+-   **Content**: Includes user details, account details, and withdrawal information.
+-   **Delivery Time**: Scheduled based on the tenant's time zone and settings.
+
+---
+
+## Error Handling
+
+-   Logs errors to the console.
+-   Returns error objects for invalid configurations, missing data, or processing failures.
+
+---
+
+## Example Usage
+
+```javascript
+const Autopay = require("./Autopay");
+
+const tenantId = "12345";
+const batchSettings = {
+    filePath: "/path/to/file",
+    maxWidthdrawlNotice: {
+        time: "12:00",
+        timeZone: "America/New_York",
+        contentName: "MaxWithdrawalNotice",
+        reportEmail: "admin@example.com",
+        reportFileName: "MaxWithdrawalReport.csv",
+    },
+    overridePaymentMethod: {
+        ACH: "checking",
+        CC: "credit",
+    },
+};
+
+(async () => {
+    const threadUnits = await Autopay.initializeThreadUnits(
+        tenantId,
+        batchSettings
+    );
+    for (const unit of threadUnits) {
+        await Autopay.processRecord(unit, tenantId);
+    }
+    await Autopay.finalize({ units: threadUnits });
+})();
+```

@@ -1,0 +1,166 @@
+# AccessibilityBatch Documentation
+
+## Overview
+
+The `AccessibilityBatch` is designed to process content records and ensure they meet accessibility standards. It modifies HTML content by adding necessary attributes (e.g., `alt`, `aria-label`, `role`, `tabindex`) to improve accessibility for users with disabilities.
+
+## Class: `AccessibilityBatch`
+
+### Properties
+
+-   **`batchName`**: A string representing the name of the batch. For this batch, it is `"AccessibilityBatch"`.
+
+---
+
+### Method: `initialize()`
+
+Initializes the batch by setting the `batchName` property to `"AccessibilityBatch"`.
+
+---
+
+### Method: `initializeThreadUnits(tenantId, settings)`
+
+Fetches content records based on the provided queries and prepares them for processing.
+
+#### Parameters:
+
+-   **`tenantId`**: The ID of the tenant for which the batch is being run.
+-   **`settings`**: Configuration settings for the batch, including an array of queries.
+
+#### Workflow:
+
+1. Validates the `tenantId` and `settings`.
+2. Iterates through the `queries` array in `settings`.
+3. Executes each query against the `Contents` database collection.
+4. Collects all matching records into a `unitList`.
+
+#### Returns:
+
+-   An array of content records (`unitList`) or an error object if setup is invalid.
+
+---
+
+### Method: `processRecord(unit, tenantId)`
+
+Processes a single content record to ensure it meets accessibility standards.
+
+#### Parameters:
+
+-   **`unit`**: A content record to be processed.
+-   **`tenantId`**: The ID of the tenant for which the batch is being run.
+
+#### Workflow:
+
+1. Validates the `unit`.
+2. Passes the content to the `parseContent` function to make it accessible.
+3. Updates the modified content back into the `Contents` database collection.
+
+#### Returns:
+
+-   Resolves with `"done"` on success or an error object if processing fails.
+
+---
+
+### Helper Function: `parseContent({ content })`
+
+Parses a content record and applies accessibility modifications to specific keys.
+
+#### Parameters:
+
+-   **`content`**: A content record containing HTML fields.
+
+#### Workflow:
+
+1. Iterates through the `validKeys` array (e.g., `html`, `en`, `es`, etc.).
+2. For each key, passes the HTML content to the `makeAccessible` function.
+3. Updates the content record with the modified HTML.
+
+#### Returns:
+
+-   The modified content record.
+
+---
+
+### Helper Function: `makeAccessible({ contentName, html })`
+
+Applies accessibility modifications to the provided HTML content.
+
+#### Parameters:
+
+-   **`contentName`**: The name of the content being processed.
+-   **`html`**: The HTML content to be modified.
+
+#### Workflow:
+
+1. Extracts all HTML tags using a regular expression.
+2. Iterates through the tags and applies the following modifications:
+    - **`<img>`**: Adds an `alt` attribute if missing.
+    - **`<a>`**: Adds an `aria-label` attribute if missing.
+    - **`<h*>`**: Adds `aria-label` and `role="main"` attributes if missing.
+    - **`<input>`**: Adds a `tabindex="0"` attribute if missing.
+3. Replaces the original tags with the modified ones in the HTML content.
+
+#### Returns:
+
+-   The modified HTML content.
+
+---
+
+## Dependencies
+
+-   **`mongodb`**: For interacting with the database.
+
+---
+
+## Database Collections
+
+-   **`Contents`**: Stores content records to be processed.
+
+---
+
+## Accessibility Enhancements
+
+The batch ensures the following accessibility improvements:
+
+1. **Images (`<img>`)**:
+    - Adds an `alt` attribute with a value of `<contentName>-image` if missing.
+2. **Links (`<a>`)**:
+    - Adds an `aria-label` attribute with a value of `<contentName>` if missing.
+3. **Headings (`<h*>`)**:
+    - Adds an `aria-label` attribute with a value of `main-<contentName>` if missing.
+    - Adds a `role="main"` attribute if missing.
+4. **Inputs (`<input>`)**:
+    - Adds a `tabindex="0"` attribute if missing.
+
+---
+
+## Error Handling
+
+-   Logs errors to the console.
+-   Returns error objects for invalid configurations, missing data, or processing failures.
+
+---
+
+## Example Usage
+
+```javascript
+const AccessibilityBatch = require("./AccessibilityBatch");
+
+const tenantId = "12345";
+const settings = {
+    queries: [
+        { type: "article", status: "published" },
+        { type: "blog", status: "draft" },
+    ],
+};
+
+(async () => {
+    const threadUnits = await AccessibilityBatch.initializeThreadUnits(
+        tenantId,
+        settings
+    );
+    for (const unit of threadUnits) {
+        await AccessibilityBatch.processRecord(unit, tenantId);
+    }
+})();
+```
