@@ -1,0 +1,183 @@
+# BillDue Batch Documentation
+
+## Overview
+
+The `BillDue` batch is responsible for processing billing notifications for tenants. It generates notifications for users and guests based on their billing information and schedules them for delivery. The batch supports both email and in-app notifications.
+
+## Class: `BillDue`
+
+### Properties
+
+-   **`batchName`**: A string representing the name of the batch. For this batch, it is `"BillDue"`.
+
+---
+
+### Method: `initialize()`
+
+Initializes the batch by setting the `batchName` property to `"BillDue"`.
+
+---
+
+### Method: `initializeThreadUnits(tenantId, batchSettings)`
+
+Prepares the thread units for processing by fetching notifications and organizing them into units.
+
+#### Parameters:
+
+-   **`tenantId`**: The ID of the tenant for which the batch is being run.
+-   **`batchSettings`**: Configuration settings for the batch, including file paths, notification times, and time zones.
+
+#### Workflow:
+
+1. Fetches tenant details using `GateKeeperHelper.call`.
+2. Validates the tenant and batch settings.
+3. Retrieves notifications from either:
+    - A file staging service (`file-staging`), or
+    - The `Staging` database collection.
+4. Organizes notifications by `PER_ID` (person ID).
+5. Deletes processed notifications from the `Staging` collection.
+6. Converts notification times to UTC based on the provided time zone.
+7. Constructs and returns a list of thread units, each containing:
+    - `PER_ID`
+    - `bills`
+    - `EMAIL`
+    - `siteURL`
+    - `time`
+    - `batchSettings`
+
+#### Returns:
+
+-   An array of thread units or an error object.
+
+---
+
+### Method: `processRecord(unit, tenantId)`
+
+Processes a single thread unit to generate notifications for users or guests.
+
+#### Parameters:
+
+-   **`unit`**: A thread unit containing billing and notification details.
+-   **`tenantId`**: The ID of the tenant for which the batch is being run.
+
+#### Workflow:
+
+1. Formats bill details (e.g., due date, balance).
+2. Checks if the total balance is greater than 0. If not, resolves with an error.
+3. Fetches users associated with the `PER_ID` from the `Users` database collection.
+4. Generates notifications:
+    - For users: Includes user-specific details like username and profile information.
+    - For guests: Includes only email and bill details.
+5. Inserts the generated notifications into the `ScheduledNotifications` database collection.
+
+#### Returns:
+
+-   Resolves with `"done"` on success or an error object if no notifications are generated.
+
+---
+
+### Method: `contactFinder(CONT_DETS)`
+
+Finds the primary email address from a list of contact details.
+
+#### Parameters:
+
+-   **`CONT_DETS`**: An array of contact details.
+
+#### Returns:
+
+-   The primary email address or `null` if not found.
+
+---
+
+### Helper Function: `buildBillTable({ bills, user, siteURL }, tenantId)`
+
+Generates an HTML table of bills for notifications.
+
+#### Parameters:
+
+-   **`bills`**: An array of bill objects.
+-   **`user`**: The user object (optional).
+-   **`siteURL`**: The tenant's site URL.
+-   **`tenantId`**: The ID of the tenant.
+
+#### Returns:
+
+-   An HTML string representing the bill table.
+
+---
+
+### Helper Function: `createFastPayToken({ bills, user }, tenantId)`
+
+Creates a one-time payment token for fast payments.
+
+#### Parameters:
+
+-   **`bills`**: An array of bill objects.
+-   **`user`**: The user object.
+-   **`tenantId`**: The ID of the tenant.
+
+#### Returns:
+
+-   A one-time payment token or an error object.
+
+---
+
+## Dependencies
+
+-   **`moment-timezone`**: For date and time manipulation.
+-   **`BillHelper`**: For generating bill tables.
+-   **`GateKeeperHelper`**: For interacting with external services.
+
+---
+
+## Database Collections
+
+-   **`Staging`**: Stores temporary notifications for processing.
+-   **`Users`**: Stores user information.
+-   **`ScheduledNotifications`**: Stores generated notifications for delivery.
+
+---
+
+## Notifications
+
+The batch generates two types of notifications:
+
+1. **User Notifications**:
+    - Sent to registered users.
+    - Includes personalized details like username and profile information.
+2. **Guest Notifications**:
+    - Sent to guests via email.
+    - Includes basic bill details.
+
+---
+
+## Error Handling
+
+-   Logs errors to the console.
+-   Returns error objects for invalid configurations, missing data, or processing failures.
+
+---
+
+## Example Usage
+
+```javascript
+const BillDue = require("./BillDue");
+
+const tenantId = "12345";
+const batchSettings = {
+    filePath: "/path/to/files",
+    notificationTimeZone: "America/New_York",
+    notificationTimes: ["08:00", "12:00", "16:00"],
+};
+
+(async () => {
+    const threadUnits = await BillDue.initializeThreadUnits(
+        tenantId,
+        batchSettings
+    );
+    for (const unit of threadUnits) {
+        await BillDue.processRecord(unit, tenantId);
+    }
+})();
+```
