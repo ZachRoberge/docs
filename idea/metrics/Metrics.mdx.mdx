@@ -1,0 +1,53 @@
+---
+title: "Metrics"
+description: "This repository's initial purpose is to consume and determine software development metrics. It utilizes integrations with the GitHub CLI to organize and examine developer events."
+---
+
+### Installation
+
+<Expandable title="Clone the Repository" defaultOpen="true">
+  git clone https://github.com/Meridian-Developers/Metrics.git
+</Expandable>
+
+<Expandable title="Install libraries" defaultOpen="true">
+  yarn;
+</Expandable>
+
+<Expandable title="Install .env file" defaultOpen="true">
+  Example:
+
+  ```properties
+  GITHUB_TOKEN={token-here}
+  GITHUB_OWNER={owner-here}
+  GITHUB_ORGANIZATION={organization-here}
+  ```
+</Expandable>
+
+### Usage
+
+```
+yarn start
+```
+
+## Trackables
+
+<Accordion title="Velocity" icon="rocket-launch" iconType="solid">
+  Velocity seeks to determine how quickly code is going from initialization, to deployment. It asks the following questions:
+
+  1. When did coding start?
+  2. When was code deployed?
+</Accordion>
+
+<Accordion title="Accuracy" icon="bullseye-arrow" iconType="solid">
+  Accuracy seeks to determine the quality of code. It asks the following questions:
+
+  1. Did code meet requirements?
+  2. Did code have issues?
+</Accordion>
+
+<Accordion title="Complexity" icon="circle-nodes" iconType="solid">
+  Complexity seeks to determine the cost of effort of code. It asks:
+
+  1. How complex were the changes?
+  2. How elegant was the solution?
+</Accordion>
